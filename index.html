@@ -1,0 +1,1749 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Lumina Nature Color Studio</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            dark: {
+              950: '#0a0d0f',
+              900: '#111618',
+              850: '#151c1f',
+              800: '#1b2427',
+              750: '#232f34',
+              700: '#2c3b42'
+            },
+            emerald: {
+              400: '#34d399',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857'
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom dark sliders */
+    input[type=range] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 5px;
+      background: #232f34;
+      border-radius: 9999px;
+      outline: none;
+      cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 15px;
+      height: 15px;
+      border-radius: 50%;
+      background: #34d399;
+      cursor: pointer;
+      border: 2px solid #111618;
+      box-shadow: 0 0 6px rgba(52, 211, 153, 0.4);
+      transition: transform 0.1s ease;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+    /* Hide scrollbars for clean aesthetic */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    canvas {
+      touch-action: none;
+      user-select: none;
+    }
+  </style>
+</head>
+<body class="bg-dark-950 text-slate-200 min-h-screen flex flex-col font-sans select-none overflow-x-hidden">
+
+  <!-- TOP HEADER -->
+  <header class="h-14 border-b border-dark-800 bg-dark-900/90 backdrop-blur px-4 flex items-center justify-between shrink-0 z-30">
+    <div class="flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center shadow-lg shadow-emerald-950/60">
+        <i data-lucide="mountain-snow" class="w-4 h-4 text-dark-950 stroke-[2.5]"></i>
+      </div>
+      <div>
+        <h1 class="text-sm font-semibold tracking-wide text-white flex items-center gap-2">
+          Lumina <span class="text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">Studio</span>
+        </h1>
+        <p class="text-[10px] text-slate-400 hidden sm:block">Nature Color Grading & Localized Masking</p>
+      </div>
+    </div>
+
+    <!-- Quick Tools / Actions -->
+    <div class="flex items-center gap-2">
+      <!-- Undo / Redo -->
+      <button onclick="undo()" id="btnUndo" disabled class="p-1.5 rounded-lg bg-dark-800 hover:bg-dark-750 disabled:opacity-40 text-slate-300 transition" title="Undo">
+        <i data-lucide="undo-2" class="w-4 h-4"></i>
+      </button>
+      <button onclick="redo()" id="btnRedo" disabled class="p-1.5 rounded-lg bg-dark-800 hover:bg-dark-750 disabled:opacity-40 text-slate-300 transition" title="Redo">
+        <i data-lucide="redo-2" class="w-4 h-4"></i>
+      </button>
+
+      <div class="h-5 w-[1px] bg-dark-750 mx-1"></div>
+
+      <!-- Compare Split Toggle -->
+      <button onclick="toggleCompareMode()" id="btnCompare" class="px-2.5 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-750 text-slate-300 text-xs font-medium flex items-center gap-1.5 transition">
+        <i data-lucide="columns-2" class="w-3.5 h-3.5 text-emerald-400"></i>
+        <span class="hidden sm:inline">Split View</span>
+      </button>
+
+      <!-- Upload Button -->
+      <label class="cursor-pointer px-3 py-1.5 rounded-lg bg-dark-800 hover:bg-dark-750 text-slate-200 text-xs font-medium flex items-center gap-1.5 border border-dark-700 transition">
+        <i data-lucide="upload" class="w-3.5 h-3.5 text-teal-400"></i>
+        <span class="hidden md:inline">Open Photo</span>
+        <input type="file" id="fileInput" accept="image/*" class="hidden" onchange="handleImageUpload(event)">
+      </label>
+
+      <!-- Export Button -->
+      <button onclick="exportProcessedImage()" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-dark-950 font-semibold text-xs flex items-center gap-1.5 shadow-md shadow-emerald-950/40 transition">
+        <i data-lucide="download" class="w-3.5 h-3.5"></i>
+        <span>Export</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN WORKSPACE -->
+  <div class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+
+    <!-- CANVAS VIEWPORT (CENTER) -->
+    <main class="flex-1 relative flex items-center justify-center bg-dark-950 p-2 sm:p-4 overflow-hidden min-h-[340px]">
+      
+      <!-- Canvas Wrapper -->
+      <div id="viewportContainer" class="relative max-w-full max-h-full flex items-center justify-center">
+        <!-- Main Rendered Canvas -->
+        <canvas id="mainCanvas" class="max-w-full max-h-[75vh] md:max-h-[82vh] rounded-lg shadow-2xl shadow-black/80 object-contain"></canvas>
+        
+        <!-- Mask Overlay Canvas (Aligned on top) -->
+        <canvas id="maskCanvas" class="absolute inset-0 w-full h-full pointer-events-none rounded-lg"></canvas>
+
+        <!-- Before / After Split Slider Overlay -->
+        <div id="splitContainer" class="absolute inset-0 pointer-events-none overflow-hidden hidden rounded-lg">
+          <div id="splitBeforeWrapper" class="absolute top-0 left-0 h-full overflow-hidden border-r-2 border-emerald-400/90 shadow-2xl">
+            <canvas id="beforeCanvas" class="h-full object-contain pointer-events-none"></canvas>
+            <div class="absolute top-3 left-3 px-2 py-0.5 rounded bg-dark-950/80 text-[10px] font-mono tracking-wider text-slate-300 border border-dark-700">ORIGINAL</div>
+          </div>
+          <div class="absolute top-3 right-3 px-2 py-0.5 rounded bg-dark-950/80 text-[10px] font-mono tracking-wider text-emerald-400 border border-emerald-500/30">GRADED</div>
+          <!-- Split Drag Handle -->
+          <div id="splitHandle" class="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-8 h-8 rounded-full bg-emerald-500 text-dark-950 flex items-center justify-center pointer-events-auto cursor-ew-resize shadow-lg shadow-black/80">
+            <i data-lucide="chevrons-left-right" class="w-4 h-4"></i>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Histogram & Sample Bar (Bottom Left Overlay) -->
+      <div class="absolute bottom-3 left-3 z-10 flex flex-col gap-2">
+        <!-- Mini Histogram -->
+        <div class="bg-dark-900/80 backdrop-blur border border-dark-750 p-2 rounded-xl shadow-lg hidden sm:block">
+          <div class="flex items-center justify-between text-[10px] font-mono text-slate-400 mb-1">
+            <span>RGB HISTOGRAM</span>
+            <span id="histLum" class="text-emerald-400">LUM</span>
+          </div>
+          <canvas id="histCanvas" width="160" height="42" class="w-40 h-11 rounded bg-dark-950/90"></canvas>
+        </div>
+
+        <!-- Sample Nature Images Pill -->
+        <div class="bg-dark-900/90 backdrop-blur border border-dark-750 px-2 py-1.5 rounded-xl flex items-center gap-1.5 shadow-lg overflow-x-auto max-w-[280px] sm:max-w-none no-scrollbar">
+          <span class="text-[10px] font-medium text-slate-400 uppercase tracking-wider px-1">Samples:</span>
+          <button onclick="loadSampleImage('forest')" class="px-2 py-0.5 rounded-md bg-dark-800 hover:bg-dark-750 text-[11px] text-slate-300 whitespace-nowrap transition border border-dark-700">🌲 Forest</button>
+          <button onclick="loadSampleImage('mountain')" class="px-2 py-0.5 rounded-md bg-dark-800 hover:bg-dark-750 text-[11px] text-slate-300 whitespace-nowrap transition border border-dark-700">🏔️ Alpine</button>
+          <button onclick="loadSampleImage('sunset')" class="px-2 py-0.5 rounded-md bg-dark-800 hover:bg-dark-750 text-[11px] text-slate-300 whitespace-nowrap transition border border-dark-700">🌅 Sunset</button>
+        </div>
+      </div>
+
+      <!-- Quick Canvas Info Badge -->
+      <div id="resolutionBadge" class="absolute top-3 left-3 bg-dark-900/80 backdrop-blur border border-dark-750 text-slate-400 px-2.5 py-1 rounded-lg text-[10px] font-mono hidden sm:block">
+        1920 × 1080
+      </div>
+    </main>
+
+    <!-- SIDEBAR CONTROLS (RIGHT DESKTOP / BOTTOM SHEET MOBILE) -->
+    <aside class="w-full md:w-80 lg:w-96 bg-dark-900 border-t md:border-t-0 md:border-l border-dark-800 flex flex-col shrink-0 h-[48vh] md:h-auto z-20">
+      
+      <!-- Tab Headers -->
+      <div class="flex border-b border-dark-800 bg-dark-900/90 shrink-0">
+        <button onclick="switchTab('presets')" id="tabBtn-presets" class="flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-1.5 border-b-2 border-emerald-500 text-emerald-400 transition">
+          <i data-lucide="wand-2" class="w-3.5 h-3.5"></i> Presets
+        </button>
+        <button onclick="switchTab('adjust')" id="tabBtn-adjust" class="flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-1.5 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition">
+          <i data-lucide="sliders" class="w-3.5 h-3.5"></i> Color & Tone
+        </button>
+        <button onclick="switchTab('mask')" id="tabBtn-mask" class="flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-1.5 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition">
+          <i data-lucide="brush" class="w-3.5 h-3.5"></i> Masking
+        </button>
+      </div>
+
+      <!-- TAB 1: PRESETS -->
+      <div id="tabContent-presets" class="flex-1 overflow-y-auto p-4 space-y-4 no-scrollbar">
+        <div class="flex items-center justify-between text-xs text-slate-400">
+          <span>Nature Color Profiles</span>
+          <button onclick="resetAllAdjustments()" class="text-emerald-400 hover:underline text-[11px]">Reset All</button>
+        </div>
+
+        <div class="grid grid-cols-2 gap-2.5">
+          <!-- Preset Cards -->
+          <button onclick="applyPreset('lush_forest')" class="preset-card group p-2.5 rounded-xl bg-dark-800/80 border border-dark-750 hover:border-emerald-500/50 text-left transition flex flex-col gap-1.5 relative overflow-hidden" data-preset="lush_forest">
+            <div class="h-10 rounded-lg bg-gradient-to-r from-emerald-950 via-teal-900 to-green-800 flex items-end p-1.5">
+              <span class="text-[10px] font-mono text-emerald-300">#FOREST</span>
+            </div>
+            <span class="text-xs font-medium text-slate-200 group-hover:text-emerald-400 transition">Lush Emerald</span>
+            <span class="text-[10px] text-slate-400">Deep vibrant canopy greens</span>
+          </button>
+
+          <button onclick="applyPreset('golden_hour')" class="preset-card group p-2.5 rounded-xl bg-dark-800/80 border border-dark-750 hover:border-amber-500/50 text-left transition flex flex-col gap-1.5 relative overflow-hidden" data-preset="golden_hour">
+            <div class="h-10 rounded-lg bg-gradient-to-r from-amber-950 via-orange-900 to-yellow-700 flex items-end p-1.5">
+              <span class="text-[10px] font-mono text-amber-300">#SUNSET</span>
+            </div>
+            <span class="text-xs font-medium text-slate-200 group-hover:text-amber-400 transition">Golden Radiance</span>
+            <span class="text-[10px] text-slate-400">Warm sunset highlight glow</span>
+          </button>
+
+          <button onclick="applyPreset('alpine_mist')" class="preset-card group p-2.5 rounded-xl bg-dark-800/80 border border-dark-750 hover:border-cyan-500/50 text-left transition flex flex-col gap-1.5 relative overflow-hidden" data-preset="alpine_mist">
+            <div class="h-10 rounded-lg bg-gradient-to-r from-slate-900 via-cyan-950 to-blue-900 flex items-end p-1.5">
+              <span class="text-[10px] font-mono text-cyan-300">#MIST</span>
+            </div>
+            <span class="text-xs font-medium text-slate-200 group-hover:text-cyan-400 transition">Alpine Cold</span>
+            <span class="text-[10px] text-slate-400">Moody glacial blues & fog</span>
+          </button>
+
+          <button onclick="applyPreset('earthy_autumn')" class="preset-card group p-2.5 rounded-xl bg-dark-800/80 border border-dark-750 hover:border-orange-500/50 text-left transition flex flex-col gap-1.5 relative overflow-hidden" data-preset="earthy_autumn">
+            <div class="h-10 rounded-lg bg-gradient-to-r from-stone-900 via-amber-900 to-amber-700 flex items-end p-1.5">
+              <span class="text-[10px] font-mono text-orange-300">#AUTUMN</span>
+            </div>
+            <span class="text-xs font-medium text-slate-200 group-hover:text-orange-400 transition">Earthy Fall</span>
+            <span class="text-[10px] text-slate-400">Warm copper & timber tones</span>
+          </button>
+
+          <button onclick="applyPreset('teal_terracotta')" class="preset-card group p-2.5 rounded-xl bg-dark-800/80 border border-dark-750 hover:border-teal-500/50 text-left transition flex flex-col gap-1.5 relative overflow-hidden" data-preset="teal_terracotta">
+            <div class="h-10 rounded-lg bg-gradient-to-r from-teal-950 via-cyan-900 to-orange-900 flex items-end p-1.5">
+              <span class="text-[10px] font-mono text-teal-300">#TEAL</span>
+            </div>
+            <span class="text-xs font-medium text-slate-200 group-hover:text-teal-400 transition">Cinematic Teal</span>
+            <span class="text-[10px] text-slate-400">High-contrast coastal split</span>
+          </button>
+
+          <button onclick="applyPreset('nat_geo')" class="preset-card group p-2.5 rounded-xl bg-dark-800/80 border border-dark-750 hover:border-emerald-500/50 text-left transition flex flex-col gap-1.5 relative overflow-hidden" data-preset="nat_geo">
+            <div class="h-10 rounded-lg bg-gradient-to-r from-emerald-900 via-yellow-900 to-sky-900 flex items-end p-1.5">
+              <span class="text-[10px] font-mono text-yellow-300">#VIVID</span>
+            </div>
+            <span class="text-xs font-medium text-slate-200 group-hover:text-yellow-400 transition">Expedition Vivid</span>
+            <span class="text-[10px] text-slate-400">High clarity documentary look</span>
+          </button>
+
+          <button onclick="applyPreset('moody_nordic')" class="preset-card group p-2.5 rounded-xl bg-dark-800/80 border border-dark-750 hover:border-slate-500/50 text-left transition flex flex-col gap-1.5 relative overflow-hidden" data-preset="moody_nordic">
+            <div class="h-10 rounded-lg bg-gradient-to-r from-neutral-950 via-slate-900 to-emerald-950 flex items-end p-1.5">
+              <span class="text-[10px] font-mono text-slate-400">#NORDIC</span>
+            </div>
+            <span class="text-xs font-medium text-slate-200 group-hover:text-slate-300 transition">Nordic Fog</span>
+            <span class="text-[10px] text-slate-400">Desaturated moody overcast</span>
+          </button>
+
+          <button onclick="applyPreset('fine_monochrome')" class="preset-card group p-2.5 rounded-xl bg-dark-800/80 border border-dark-750 hover:border-slate-400/50 text-left transition flex flex-col gap-1.5 relative overflow-hidden" data-preset="fine_monochrome">
+            <div class="h-10 rounded-lg bg-gradient-to-r from-black via-zinc-800 to-zinc-400 flex items-end p-1.5">
+              <span class="text-[10px] font-mono text-slate-200">#B&W</span>
+            </div>
+            <span class="text-xs font-medium text-slate-200 group-hover:text-white transition">Nature Mono</span>
+            <span class="text-[10px] text-slate-400">High dynamic range Ansel tone</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- TAB 2: ADJUST (COLOR & TONE) -->
+      <div id="tabContent-adjust" class="flex-1 overflow-y-auto p-4 space-y-5 hidden no-scrollbar">
+        
+        <!-- Nature Color Enhancement -->
+        <div class="space-y-3 bg-dark-800/50 p-3 rounded-xl border border-dark-750">
+          <div class="flex items-center justify-between text-xs font-medium text-emerald-400">
+            <span class="flex items-center gap-1.5"><i data-lucide="leaf" class="w-3.5 h-3.5"></i> Foliage & Sky Calibration</span>
+            <button onclick="resetParamGroup(['foliageGreens', 'skyCyan', 'warmthGlow'])" class="text-[10px] text-slate-400 hover:text-slate-200">Reset</button>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Foliage Green Depth</span>
+              <span id="val-foliageGreens" class="font-mono text-emerald-400">0</span>
+            </div>
+            <input type="range" id="param-foliageGreens" min="-100" max="100" value="0" oninput="updateAdjustment('foliageGreens', this.value)">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Sky & Water Cyan</span>
+              <span id="val-skyCyan" class="font-mono text-cyan-400">0</span>
+            </div>
+            <input type="range" id="param-skyCyan" min="-100" max="100" value="0" oninput="updateAdjustment('skyCyan', this.value)">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Sunset Golden Glow</span>
+              <span id="val-warmthGlow" class="font-mono text-amber-400">0</span>
+            </div>
+            <input type="range" id="param-warmthGlow" min="-100" max="100" value="0" oninput="updateAdjustment('warmthGlow', this.value)">
+          </div>
+        </div>
+
+        <!-- Tone & Exposure -->
+        <div class="space-y-3 bg-dark-800/50 p-3 rounded-xl border border-dark-750">
+          <div class="flex items-center justify-between text-xs font-medium text-slate-200">
+            <span class="flex items-center gap-1.5"><i data-lucide="sun" class="w-3.5 h-3.5 text-amber-400"></i> Tone Curve & Exposure</span>
+            <button onclick="resetParamGroup(['exposure', 'contrast', 'highlights', 'shadows'])" class="text-[10px] text-slate-400 hover:text-slate-200">Reset</button>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Exposure</span>
+              <span id="val-exposure" class="font-mono text-slate-200">0.0 EV</span>
+            </div>
+            <input type="range" id="param-exposure" min="-100" max="100" value="0" oninput="updateAdjustment('exposure', this.value)">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Contrast</span>
+              <span id="val-contrast" class="font-mono text-slate-200">0</span>
+            </div>
+            <input type="range" id="param-contrast" min="-100" max="100" value="0" oninput="updateAdjustment('contrast', this.value)">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Highlights Recovery</span>
+              <span id="val-highlights" class="font-mono text-slate-200">0</span>
+            </div>
+            <input type="range" id="param-highlights" min="-100" max="100" value="0" oninput="updateAdjustment('highlights', this.value)">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Shadows Lift</span>
+              <span id="val-shadows" class="font-mono text-slate-200">0</span>
+            </div>
+            <input type="range" id="param-shadows" min="-100" max="100" value="0" oninput="updateAdjustment('shadows', this.value)">
+          </div>
+        </div>
+
+        <!-- White Balance & Vibrance -->
+        <div class="space-y-3 bg-dark-800/50 p-3 rounded-xl border border-dark-750">
+          <div class="flex items-center justify-between text-xs font-medium text-slate-200">
+            <span class="flex items-center gap-1.5"><i data-lucide="thermometer" class="w-3.5 h-3.5 text-blue-400"></i> White Balance & Vibrance</span>
+            <button onclick="resetParamGroup(['temp', 'tint', 'vibrance', 'saturation'])" class="text-[10px] text-slate-400 hover:text-slate-200">Reset</button>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Temperature (Warm/Cool)</span>
+              <span id="val-temp" class="font-mono text-slate-200">0 K</span>
+            </div>
+            <input type="range" id="param-temp" min="-100" max="100" value="0" oninput="updateAdjustment('temp', this.value)">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Tint (Green/Magenta)</span>
+              <span id="val-tint" class="font-mono text-slate-200">0</span>
+            </div>
+            <input type="range" id="param-tint" min="-100" max="100" value="0" oninput="updateAdjustment('tint', this.value)">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Nature Vibrance</span>
+              <span id="val-vibrance" class="font-mono text-slate-200">0</span>
+            </div>
+            <input type="range" id="param-vibrance" min="-100" max="100" value="0" oninput="updateAdjustment('vibrance', this.value)">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Saturation</span>
+              <span id="val-saturation" class="font-mono text-slate-200">0</span>
+            </div>
+            <input type="range" id="param-saturation" min="-100" max="100" value="0" oninput="updateAdjustment('saturation', this.value)">
+          </div>
+        </div>
+
+        <!-- 3-Way Color Balance Wheels Simulation -->
+        <div class="space-y-3 bg-dark-800/50 p-3 rounded-xl border border-dark-750">
+          <div class="flex items-center justify-between text-xs font-medium text-slate-200">
+            <span class="flex items-center gap-1.5"><i data-lucide="disc" class="w-3.5 h-3.5 text-teal-400"></i> Split Toning (Shadows / Highlights)</span>
+            <button onclick="resetParamGroup(['shadowTint', 'highlightTint'])" class="text-[10px] text-slate-400 hover:text-slate-200">Reset</button>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Shadows Tone (Cyan-Orange)</span>
+              <span id="val-shadowTint" class="font-mono text-slate-200">0</span>
+            </div>
+            <input type="range" id="param-shadowTint" min="-100" max="100" value="0" oninput="updateAdjustment('shadowTint', this.value)">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Highlights Tone (Cool-Warm)</span>
+              <span id="val-highlightTint" class="font-mono text-slate-200">0</span>
+            </div>
+            <input type="range" id="param-highlightTint" min="-100" max="100" value="0" oninput="updateAdjustment('highlightTint', this.value)">
+          </div>
+        </div>
+
+      </div>
+
+      <!-- TAB 3: MASKING & LOCAL ADJUSTMENTS -->
+      <div id="tabContent-mask" class="flex-1 overflow-y-auto p-4 space-y-4 hidden no-scrollbar">
+        
+        <!-- Mask Tool Selection -->
+        <div class="space-y-3 bg-dark-800/50 p-3 rounded-xl border border-dark-750">
+          <div class="flex items-center justify-between text-xs font-medium text-emerald-400">
+            <span class="flex items-center gap-1.5"><i data-lucide="paint-brush" class="w-3.5 h-3.5"></i> Local Adjustment Mask</span>
+            <button onclick="clearCurrentMask()" class="text-[10px] text-rose-400 hover:text-rose-300">Clear Mask</button>
+          </div>
+
+          <p class="text-[11px] text-slate-400">Paint or select foliage/sky to grade local landscape regions with edge-blended falloff.</p>
+
+          <!-- Quick Select Filters -->
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="autoSelectMask('foliage')" class="py-2 px-2.5 rounded-lg bg-dark-750 hover:bg-dark-700 text-slate-200 text-xs font-medium flex items-center justify-center gap-1.5 border border-dark-700 transition">
+              <i data-lucide="trees" class="w-3.5 h-3.5 text-emerald-400"></i>
+              <span>Select Foliage</span>
+            </button>
+            <button onclick="autoSelectMask('sky')" class="py-2 px-2.5 rounded-lg bg-dark-750 hover:bg-dark-700 text-slate-200 text-xs font-medium flex items-center justify-center gap-1.5 border border-dark-700 transition">
+              <i data-lucide="cloud" class="w-3.5 h-3.5 text-sky-400"></i>
+              <span>Select Sky</span>
+            </button>
+          </div>
+
+          <!-- Brush Settings -->
+          <div class="space-y-2.5 pt-2 border-t border-dark-750">
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-300">Brush Size</span>
+              <span id="val-brushSize" class="font-mono text-emerald-400">60px</span>
+            </div>
+            <input type="range" id="input-brushSize" min="10" max="250" value="60" oninput="updateBrushSetting('size', this.value)">
+
+            <div class="flex justify-between text-xs">
+              <span class="text-slate-300">Edge Feathering (Softness)</span>
+              <span id="val-brushFeather" class="font-mono text-emerald-400">50%</span>
+            </div>
+            <input type="range" id="input-brushFeather" min="5" max="100" value="50" oninput="updateBrushSetting('feather', this.value)">
+
+            <!-- Edge Blending Falloff -->
+            <div class="pt-2 border-t border-dark-750 space-y-2">
+              <div class="flex items-center justify-between text-xs">
+                <span class="text-slate-300 flex items-center gap-1">
+                  <i data-lucide="blend" class="w-3.5 h-3.5 text-teal-400"></i> Edge Blend Falloff
+                </span>
+                <span id="val-maskBlend" class="font-mono text-teal-400">18px</span>
+              </div>
+              <input type="range" id="input-maskBlend" min="0" max="60" value="18" oninput="updateMaskBlend(this.value)">
+
+              <div class="flex items-center gap-2 pt-1">
+                <button onclick="smoothMaskBuffer(2)" class="flex-1 py-1.5 px-2 rounded-lg bg-dark-750 hover:bg-dark-700 text-slate-300 border border-dark-700 text-[11px] font-medium flex items-center justify-center gap-1.5 transition">
+                  <i data-lucide="sparkles" class="w-3 h-3 text-emerald-400"></i> Auto-Blend Edges
+                </button>
+                <button onclick="invertMask()" class="py-1.5 px-3 rounded-lg bg-dark-750 hover:bg-dark-700 text-slate-300 border border-dark-700 text-[11px] font-medium transition">
+                  Invert
+                </button>
+              </div>
+            </div>
+
+            <div class="flex gap-2 pt-1">
+              <button onclick="setBrushMode('paint')" id="btnBrushMode-paint" class="flex-1 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-medium">Paint</button>
+              <button onclick="setBrushMode('erase')" id="btnBrushMode-erase" class="flex-1 py-1.5 rounded-lg bg-dark-750 text-slate-400 border border-dark-700 text-xs font-medium">Erase</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Mask View Overlay Toggle -->
+        <div class="flex items-center justify-between bg-dark-800/40 p-3 rounded-xl border border-dark-750">
+          <span class="text-xs text-slate-300 flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-rose-500"></span> Show Mask Overlay
+          </span>
+          <button onclick="toggleRubyOverlay()" id="btnRubyToggle" class="px-3 py-1 rounded-md text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
+            Visible
+          </button>
+        </div>
+
+        <!-- Localized Mask Grading Controls -->
+        <div class="space-y-3 bg-dark-800/50 p-3 rounded-xl border border-dark-750">
+          <div class="flex items-center justify-between text-xs font-medium text-slate-200">
+            <span class="flex items-center gap-1.5"><i data-lucide="sliders-horizontal" class="w-3.5 h-3.5 text-teal-400"></i> Masked Region Grade</span>
+            <button onclick="resetMaskAdjustments()" class="text-[10px] text-slate-400 hover:text-slate-200">Reset</button>
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Target Exposure</span>
+              <span id="val-maskExp" class="font-mono text-slate-200">0.0 EV</span>
+            </div>
+            <input type="range" id="param-maskExp" min="-100" max="100" value="0" oninput="updateMaskAdjustment('maskExp', this.value)">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Target Warmth</span>
+              <span id="val-maskTemp" class="font-mono text-slate-200">0 K</span>
+            </div>
+            <input type="range" id="param-maskTemp" min="-100" max="100" value="0" oninput="updateMaskAdjustment('maskTemp', this.value)">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Target Foliage Green Pop</span>
+              <span id="val-maskFoliage" class="font-mono text-emerald-400">0</span>
+            </div>
+            <input type="range" id="param-maskFoliage" min="-100" max="100" value="0" oninput="updateMaskAdjustment('maskFoliage', this.value)">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Target Saturation</span>
+              <span id="val-maskSat" class="font-mono text-slate-200">0</span>
+            </div>
+            <input type="range" id="param-maskSat" min="-100" max="100" value="0" oninput="updateMaskAdjustment('maskSat', this.value)">
+          </div>
+
+          <div>
+            <div class="flex justify-between text-xs mb-1">
+              <span class="text-slate-300">Target Contrast</span>
+              <span id="val-maskContrast" class="font-mono text-slate-200">0</span>
+            </div>
+            <input type="range" id="param-maskContrast" min="-100" max="100" value="0" oninput="updateMaskAdjustment('maskContrast', this.value)">
+          </div>
+        </div>
+
+      </div>
+
+    </aside>
+  </div>
+
+  <!-- JAVASCRIPT APPLICATION LOGIC -->
+  <script>
+    /* =============================================================
+     * GLOBAL STATE & INITIAL CONFIGURATION
+     * ============================================================= */
+    const mainCanvas = document.getElementById('mainCanvas');
+    const mainCtx = mainCanvas.getContext('2d', { willReadFrequently: true });
+
+    const maskCanvas = document.getElementById('maskCanvas');
+    const maskCtx = maskCanvas.getContext('2d');
+
+    const beforeCanvas = document.getElementById('beforeCanvas');
+    const beforeCtx = beforeCanvas.getContext('2d');
+
+    const histCanvas = document.getElementById('histCanvas');
+    const histCtx = histCanvas.getContext('2d');
+
+    const splitContainer = document.getElementById('splitContainer');
+    const splitBeforeWrapper = document.getElementById('splitBeforeWrapper');
+    const splitHandle = document.getElementById('splitHandle');
+
+    let originalImage = null;
+    let baseImageData = null;   // Clean unedited pixel data
+    let activeTab = 'presets';
+
+    // Global Adjustment Parameters
+    let params = {
+      exposure: 0,
+      contrast: 0,
+      highlights: 0,
+      shadows: 0,
+      temp: 0,
+      tint: 0,
+      vibrance: 0,
+      saturation: 0,
+      foliageGreens: 0,
+      skyCyan: 0,
+      warmthGlow: 0,
+      shadowTint: 0,
+      highlightTint: 0
+    };
+
+    // Local Mask Parameters
+    let maskParams = {
+      maskExp: 0,
+      maskTemp: 0,
+      maskFoliage: 0,
+      maskSat: 0,
+      maskContrast: 0
+    };
+
+    // Masking State
+    let brushMode = 'paint';
+    let brushSize = 60;
+    let brushFeather = 50;
+    let maskBlendRadius = 18;
+    let showRubyOverlay = true;
+    let maskDataBuffer = null;     // Uint8Array of size (w * h)
+    let smoothedMaskBuffer = null; // Blurred Uint8Array for seamless blending
+    let isDrawingMask = false;
+
+    // Split Compare State
+    let isCompareMode = false;
+    let splitPos = 0.5;
+    let isDraggingSplit = false;
+
+    // History (Undo / Redo)
+    const historyStack = [];
+    let historyIndex = -1;
+    const MAX_HISTORY = 16;
+
+    /* =============================================================
+     * APPLICATION STARTUP
+     * ============================================================= */
+    window.addEventListener('DOMContentLoaded', () => {
+      safeInitIcons();
+      setupPointerEvents();
+      loadSampleImage('forest');
+    });
+
+    function safeInitIcons() {
+      try {
+        if (window.lucide && typeof lucide.createIcons === 'function') {
+          lucide.createIcons();
+        }
+      } catch (err) {
+        console.warn('Lucide icon initialization skipped:', err);
+      }
+    }
+
+    /* =============================================================
+     * IMAGE LOADING & PROCEDURAL SAMPLES
+     * ============================================================= */
+    function loadSampleImage(type) {
+      const offscreen = document.createElement('canvas');
+      const w = 1280;
+      const h = 850;
+      offscreen.width = w;
+      offscreen.height = h;
+      const ctx = offscreen.getContext('2d');
+
+      if (type === 'forest') {
+        // Deep misty emerald woodland
+        const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.45);
+        skyGrad.addColorStop(0, '#78909c');
+        skyGrad.addColorStop(1, '#b0bec5');
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, w, h);
+
+        // Distant mountains
+        ctx.fillStyle = '#455a64';
+        ctx.beginPath();
+        ctx.moveTo(0, h * 0.45);
+        ctx.lineTo(w * 0.35, h * 0.25);
+        ctx.lineTo(w * 0.7, h * 0.42);
+        ctx.lineTo(w, h * 0.3);
+        ctx.lineTo(w, h * 0.5);
+        ctx.lineTo(0, h * 0.5);
+        ctx.fill();
+
+        // Forest floor & hills
+        const groundGrad = ctx.createLinearGradient(0, h * 0.4, 0, h);
+        groundGrad.addColorStop(0, '#1b3a28');
+        groundGrad.addColorStop(0.5, '#2e5d3c');
+        groundGrad.addColorStop(1, '#142a1d');
+        ctx.fillStyle = groundGrad;
+        ctx.fillRect(0, h * 0.4, w, h * 0.6);
+
+        // Silhouetted pine trees
+        drawForestCanopy(ctx, w, h);
+
+      } else if (type === 'mountain') {
+        // High Alpine Peak & Glacial Lake
+        const skyGrad = ctx.createLinearGradient(0, 0, 0, h * 0.6);
+        skyGrad.addColorStop(0, '#2b5876');
+        skyGrad.addColorStop(0.6, '#4e4376');
+        skyGrad.addColorStop(1, '#8ea0af');
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, w, h);
+
+        // Snowy crags
+        ctx.fillStyle = '#eceff1';
+        ctx.beginPath();
+        ctx.moveTo(0, h * 0.5);
+        ctx.lineTo(w * 0.45, h * 0.15);
+        ctx.lineTo(w * 0.6, h * 0.28);
+        ctx.lineTo(w * 0.85, h * 0.18);
+        ctx.lineTo(w, h * 0.45);
+        ctx.lineTo(w, h);
+        ctx.lineTo(0, h);
+        ctx.fill();
+
+        // Shaded ridge
+        ctx.fillStyle = '#37474f';
+        ctx.beginPath();
+        ctx.moveTo(w * 0.45, h * 0.15);
+        ctx.lineTo(w * 0.5, h * 0.5);
+        ctx.lineTo(w * 0.85, h * 0.18);
+        ctx.lineTo(w * 0.6, h * 0.28);
+        ctx.fill();
+
+        // Glacial water
+        const waterGrad = ctx.createLinearGradient(0, h * 0.6, 0, h);
+        waterGrad.addColorStop(0, '#264e5a');
+        waterGrad.addColorStop(1, '#0e2b34');
+        ctx.fillStyle = waterGrad;
+        ctx.fillRect(0, h * 0.6, w, h * 0.4);
+
+      } else {
+        // Sunset Horizon
+        const sunsetGrad = ctx.createLinearGradient(0, 0, 0, h);
+        sunsetGrad.addColorStop(0, '#2b1055');
+        sunsetGrad.addColorStop(0.3, '#75225b');
+        sunsetGrad.addColorStop(0.55, '#d04944');
+        sunsetGrad.addColorStop(0.7, '#f49342');
+        sunsetGrad.addColorStop(0.85, '#f5c352');
+        sunsetGrad.addColorStop(1, '#2c1e21');
+        ctx.fillStyle = sunsetGrad;
+        ctx.fillRect(0, 0, w, h);
+
+        // Sun disc
+        ctx.fillStyle = '#fff4db';
+        ctx.beginPath();
+        ctx.arc(w * 0.5, h * 0.62, 50, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Foreground silhouette
+        ctx.fillStyle = '#170f14';
+        ctx.beginPath();
+        ctx.moveTo(0, h * 0.75);
+        ctx.quadraticCurveTo(w * 0.3, h * 0.68, w * 0.6, h * 0.74);
+        ctx.quadraticCurveTo(w * 0.85, h * 0.78, w, h * 0.72);
+        ctx.lineTo(w, h);
+        ctx.lineTo(0, h);
+        ctx.fill();
+      }
+
+      const img = new Image();
+      img.onload = () => {
+        applyNewImage(img);
+      };
+      img.src = offscreen.toDataURL('image/jpeg', 0.95);
+    }
+
+    function drawForestCanopy(ctx, w, h) {
+      for (let i = 0; i < 45; i++) {
+        const x = (i / 45) * w + (Math.random() * 20 - 10);
+        const baseY = h * 0.45 + (Math.random() * h * 0.5);
+        const treeH = 90 + Math.random() * 140;
+        const treeW = 24 + Math.random() * 28;
+
+        ctx.fillStyle = '#1b3f27';
+        ctx.beginPath();
+        ctx.moveTo(x, baseY - treeH);
+        ctx.lineTo(x - treeW, baseY);
+        ctx.lineTo(x + treeW, baseY);
+        ctx.closePath();
+        ctx.fill();
+
+        // Inner darker pine layer
+        ctx.fillStyle = '#122b1b';
+        ctx.beginPath();
+        ctx.moveTo(x, baseY - treeH * 0.8);
+        ctx.lineTo(x - treeW * 0.7, baseY);
+        ctx.lineTo(x + treeW * 0.7, baseY);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+
+    function handleImageUpload(e) {
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+          applyNewImage(img);
+        };
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    function applyNewImage(img) {
+      originalImage = img;
+
+      // Restrict working canvas max dimension to 1920 to keep real-time 60fps responsiveness
+      let w = img.width;
+      let h = img.height;
+      const MAX_DIM = 1920;
+      if (w > MAX_DIM || h > MAX_DIM) {
+        if (w > h) {
+          h = Math.round((h * MAX_DIM) / w);
+          w = MAX_DIM;
+        } else {
+          w = Math.round((w * MAX_DIM) / h);
+          h = MAX_DIM;
+        }
+      }
+
+      mainCanvas.width = w;
+      mainCanvas.height = h;
+
+      maskCanvas.width = w;
+      maskCanvas.height = h;
+
+      beforeCanvas.width = w;
+      beforeCanvas.height = h;
+
+      // Draw original untouched image to beforeCanvas and extract base ImageData
+      beforeCtx.drawImage(img, 0, 0, w, h);
+      baseImageData = beforeCtx.getImageData(0, 0, w, h);
+
+      // Allocate fresh mask buffers
+      maskDataBuffer = new Uint8Array(w * h);
+      smoothedMaskBuffer = new Uint8Array(w * h);
+
+      // Update resolution label
+      const resBadge = document.getElementById('resolutionBadge');
+      if (resBadge) resBadge.innerText = `${w} × ${h}`;
+
+      resetAllAdjustments();
+      historyStack.length = 0;
+      historyIndex = -1;
+      pushHistory();
+
+      renderImage();
+      updateSplitView();
+    }
+
+    /* =============================================================
+     * RENDER & COLOR GRADING PIPELINE (CPU COLOR ENGINE)
+     * ============================================================= */
+    function renderImage() {
+      if (!baseImageData || !mainCanvas.width || !mainCanvas.height) return;
+
+      const w = mainCanvas.width;
+      const h = mainCanvas.height;
+      const outputImgData = mainCtx.createImageData(w, h);
+      const src = baseImageData.data;
+      const dst = outputImgData.data;
+      const totalPixels = w * h;
+
+      // Precalculate Global Color Multipliers
+      const expMult = Math.pow(2, params.exposure / 50);
+      const contrastFactor = (259 * (params.contrast + 255)) / (255 * (259 - params.contrast));
+      const satMult = 1 + (params.saturation / 100);
+      const vibMult = params.vibrance / 100;
+      
+      const warmthR = 1 + (params.temp / 150);
+      const warmthB = 1 - (params.temp / 150);
+      const tintG = 1 - (params.tint / 200);
+
+      const foliageBoost = params.foliageGreens / 100;
+      const skyBoost = params.skyCyan / 100;
+      const sunsetBoost = params.warmthGlow / 100;
+
+      const shadowSplit = params.shadowTint / 100;
+      const highSplit = params.highlightTint / 100;
+
+      const hlFactor = params.highlights / 100;
+      const shFactor = params.shadows / 100;
+
+      // Precalculate Local Mask Multipliers
+      const mExpMult = Math.pow(2, maskParams.maskExp / 50);
+      const mContrastFactor = (259 * (maskParams.maskContrast + 255)) / (255 * (259 - maskParams.maskContrast));
+      const mSatMult = 1 + (maskParams.maskSat / 100);
+      const mWarmthR = 1 + (maskParams.maskTemp / 150);
+      const mWarmthB = 1 - (maskParams.maskTemp / 150);
+      const mFoliage = maskParams.maskFoliage / 100;
+
+      const hasMaskAdjustments = (
+        maskParams.maskExp !== 0 ||
+        maskParams.maskTemp !== 0 ||
+        maskParams.maskFoliage !== 0 ||
+        maskParams.maskSat !== 0 ||
+        maskParams.maskContrast !== 0
+      );
+
+      // Select active mask buffer (blended falloff buffer if blend > 0)
+      const activeMask = (maskBlendRadius > 0 && smoothedMaskBuffer) ? smoothedMaskBuffer : maskDataBuffer;
+
+      // Histogram bins
+      const histR = new Uint32Array(64);
+      const histG = new Uint32Array(64);
+      const histB = new Uint32Array(64);
+
+      for (let i = 0; i < totalPixels; i++) {
+        const offset = i * 4;
+        let r = src[offset];
+        let g = src[offset + 1];
+        let b = src[offset + 2];
+
+        // 1. Exposure
+        r *= expMult;
+        g *= expMult;
+        b *= expMult;
+
+        // 2. Highlights & Shadows curve
+        let lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        if (hlFactor !== 0 && lum > 128) {
+          const hlWeight = (lum - 128) / 127;
+          const factor = 1 - (hlFactor * 0.45 * hlWeight);
+          r *= factor;
+          g *= factor;
+          b *= factor;
+        }
+        if (shFactor !== 0 && lum < 128) {
+          const shWeight = (128 - lum) / 128;
+          const factor = 1 + (shFactor * 0.55 * shWeight);
+          r *= factor;
+          g *= factor;
+          b *= factor;
+        }
+
+        // 3. White Balance & Tint
+        r *= warmthR;
+        b *= warmthB;
+        g *= tintG;
+
+        // 4. Nature Color Calibration
+        // Foliage Greens
+        if (foliageBoost !== 0 && g > r && g > b) {
+          g += foliageBoost * 45;
+          r += foliageBoost * 10;
+        }
+        // Sky & Water Cyan
+        if (skyBoost !== 0 && b > r) {
+          b += skyBoost * 40;
+          g += skyBoost * 20;
+        }
+        // Sunset Golden Glow
+        if (sunsetBoost !== 0 && lum > 90) {
+          const glowWeight = (lum / 255);
+          r += sunsetBoost * 45 * glowWeight;
+          g += sunsetBoost * 22 * glowWeight;
+        }
+
+        // 5. Split Toning (Shadows / Highlights)
+        lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        if (shadowSplit !== 0 && lum < 140) {
+          const weight = (140 - lum) / 140;
+          r += shadowSplit * 25 * weight;
+          b -= shadowSplit * 25 * weight;
+        }
+        if (highSplit !== 0 && lum > 115) {
+          const weight = (lum - 115) / 140;
+          r += highSplit * 30 * weight;
+          b -= highSplit * 20 * weight;
+        }
+
+        // 6. Contrast S-Curve
+        if (contrastFactor !== 1) {
+          r = contrastFactor * (r - 128) + 128;
+          g = contrastFactor * (g - 128) + 128;
+          b = contrastFactor * (b - 128) + 128;
+        }
+
+        // 7. Vibrance & Saturation
+        lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        const maxC = Math.max(r, g, b);
+        const minC = Math.min(r, g, b);
+        const currentSat = maxC === 0 ? 0 : (maxC - minC) / maxC;
+        const effectiveSat = satMult + (vibMult * (1 - currentSat));
+
+        r = lum + (r - lum) * effectiveSat;
+        g = lum + (g - lum) * effectiveSat;
+        b = lum + (b - lum) * effectiveSat;
+
+        // 8. LOCAL MASK ADJUSTMENTS WITH SEAMLESS BLEND
+        if (hasMaskAdjustments && activeMask) {
+          const maskWeight = activeMask[i] / 255;
+          if (maskWeight > 0.003) {
+            let mr = r * mExpMult;
+            let mg = g * mExpMult;
+            let mb = b * mExpMult;
+
+            mr *= mWarmthR;
+            mb *= mWarmthB;
+
+            if (mFoliage !== 0 && mg > mr && mg > mb) {
+              mg += mFoliage * 40;
+            }
+
+            if (mContrastFactor !== 1) {
+              mr = mContrastFactor * (mr - 128) + 128;
+              mg = mContrastFactor * (mg - 128) + 128;
+              mb = mContrastFactor * (mb - 128) + 128;
+            }
+
+            const mLum = 0.2126 * mr + 0.7152 * mg + 0.0722 * mb;
+            mr = mLum + (mr - mLum) * mSatMult;
+            mg = mLum + (mg - mLum) * mSatMult;
+            mb = mLum + (mb - mLum) * mSatMult;
+
+            // Ambient Hermite Edge Interpolation
+            const smoothW = maskWeight * maskWeight * (3 - 2 * maskWeight);
+            r = r * (1 - smoothW) + mr * smoothW;
+            g = g * (1 - smoothW) + mg * smoothW;
+            b = b * (1 - smoothW) + mb * smoothW;
+          }
+        }
+
+        // Clamp
+        const finalR = r < 0 ? 0 : r > 255 ? 255 : (r | 0);
+        const finalG = g < 0 ? 0 : g > 255 ? 255 : (g | 0);
+        const finalB = b < 0 ? 0 : b > 255 ? 255 : (b | 0);
+
+        dst[offset] = finalR;
+        dst[offset + 1] = finalG;
+        dst[offset + 2] = finalB;
+        dst[offset + 3] = 255;
+
+        // Collect downsampled histogram
+        if ((i & 7) === 0) {
+          histR[finalR >> 2]++;
+          histG[finalG >> 2]++;
+          histB[finalB >> 2]++;
+        }
+      }
+
+      mainCtx.putImageData(outputImgData, 0, 0);
+      drawHistogram(histR, histG, histB);
+      renderRubyMask();
+    }
+
+    /* =============================================================
+     * LIVE HISTOGRAM DISPLAY
+     * ============================================================= */
+    function drawHistogram(rArr, gArr, bArr) {
+      if (!histCtx) return;
+      histCtx.clearRect(0, 0, 160, 42);
+
+      let max = 1;
+      for (let i = 0; i < 64; i++) {
+        if (rArr[i] > max) max = rArr[i];
+        if (gArr[i] > max) max = gArr[i];
+        if (bArr[i] > max) max = bArr[i];
+      }
+
+      histCtx.globalCompositeOperation = 'screen';
+
+      function drawChannel(arr, color) {
+        histCtx.fillStyle = color;
+        histCtx.beginPath();
+        histCtx.moveTo(0, 42);
+        for (let i = 0; i < 64; i++) {
+          const x = (i / 63) * 160;
+          const y = 42 - (arr[i] / max) * 40;
+          histCtx.lineTo(x, y);
+        }
+        histCtx.lineTo(160, 42);
+        histCtx.closePath();
+        histCtx.fill();
+      }
+
+      drawChannel(rArr, 'rgba(239, 68, 68, 0.55)');
+      drawChannel(gArr, 'rgba(52, 211, 153, 0.55)');
+      drawChannel(bArr, 'rgba(56, 189, 248, 0.55)');
+
+      histCtx.globalCompositeOperation = 'source-over';
+    }
+
+    /* =============================================================
+     * LOCAL MASKING & SEAMLESS BLENDING ENGINE
+     * ============================================================= */
+    function setBrushMode(mode) {
+      brushMode = mode;
+      const btnPaint = document.getElementById('btnBrushMode-paint');
+      const btnErase = document.getElementById('btnBrushMode-erase');
+      if (mode === 'paint') {
+        btnPaint.className = 'flex-1 py-1.5 rounded-lg bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-medium';
+        btnErase.className = 'flex-1 py-1.5 rounded-lg bg-dark-750 text-slate-400 border border-dark-700 text-xs font-medium';
+      } else {
+        btnErase.className = 'flex-1 py-1.5 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/40 text-xs font-medium';
+        btnPaint.className = 'flex-1 py-1.5 rounded-lg bg-dark-750 text-slate-400 border border-dark-700 text-xs font-medium';
+      }
+    }
+
+    function updateBrushSetting(prop, val) {
+      const num = parseInt(val, 10);
+      if (prop === 'size') {
+        brushSize = num;
+        document.getElementById('val-brushSize').innerText = `${num}px`;
+      } else if (prop === 'feather') {
+        brushFeather = num;
+        document.getElementById('val-brushFeather').innerText = `${num}%`;
+      }
+    }
+
+    function updateMaskBlend(val) {
+      maskBlendRadius = parseInt(val, 10) || 0;
+      document.getElementById('val-maskBlend').innerText = `${maskBlendRadius}px`;
+      generateBlendedMaskBuffer();
+      renderImage();
+    }
+
+    // 2-Pass Box/Gaussian approximation with Hermite easing for boundary diffusion
+    function generateBlendedMaskBuffer() {
+      if (!maskDataBuffer || !mainCanvas.width || !mainCanvas.height) return;
+      const w = mainCanvas.width;
+      const h = mainCanvas.height;
+
+      if (!smoothedMaskBuffer || smoothedMaskBuffer.length !== w * h) {
+        smoothedMaskBuffer = new Uint8Array(w * h);
+      }
+
+      if (maskBlendRadius <= 0) {
+        smoothedMaskBuffer.set(maskDataBuffer);
+        return;
+      }
+
+      const temp = new Float32Array(w * h);
+      const r = Math.min(maskBlendRadius, Math.floor(Math.min(w, h) / 4));
+      const d = 2 * r + 1;
+
+      // Horizontal pass
+      for (let y = 0; y < h; y++) {
+        let sum = 0;
+        const rowOffset = y * w;
+        for (let x = 0; x < r; x++) {
+          sum += maskDataBuffer[rowOffset + Math.min(w - 1, x)];
+        }
+        for (let x = 0; x < w; x++) {
+          const addIdx = Math.min(w - 1, x + r);
+          const remIdx = Math.max(0, x - r - 1);
+          sum += maskDataBuffer[rowOffset + addIdx] - maskDataBuffer[rowOffset + remIdx];
+          temp[rowOffset + x] = sum / d;
+        }
+      }
+
+      // Vertical pass with smoothstep S-curve
+      for (let x = 0; x < w; x++) {
+        let sum = 0;
+        for (let y = 0; y < r; y++) {
+          sum += temp[Math.min(h - 1, y) * w + x];
+        }
+        for (let y = 0; y < h; y++) {
+          const addIdx = Math.min(h - 1, y + r);
+          const remIdx = Math.max(0, y - r - 1);
+          sum += temp[addIdx * w + x] - temp[remIdx * w + x];
+          let norm = sum / (d * 255);
+          norm = Math.max(0, Math.min(1, norm));
+          const smoothWeight = norm * norm * (3 - 2 * norm);
+          smoothedMaskBuffer[y * w + x] = (smoothWeight * 255) | 0;
+        }
+      }
+    }
+
+    function smoothMaskBuffer(passes = 2) {
+      if (!maskDataBuffer || !mainCanvas.width || !mainCanvas.height) return;
+      pushHistory();
+      const w = mainCanvas.width;
+      const h = mainCanvas.height;
+      const temp = new Uint8Array(w * h);
+
+      for (let p = 0; p < passes; p++) {
+        for (let y = 1; y < h - 1; y++) {
+          const row = y * w;
+          for (let x = 1; x < w - 1; x++) {
+            const idx = row + x;
+            const avg = (
+              maskDataBuffer[idx - w] +
+              maskDataBuffer[idx + w] +
+              maskDataBuffer[idx - 1] +
+              maskDataBuffer[idx + 1] +
+              (maskDataBuffer[idx] * 2)
+            ) / 6;
+            temp[idx] = avg | 0;
+          }
+        }
+        maskDataBuffer.set(temp);
+      }
+      generateBlendedMaskBuffer();
+      renderImage();
+    }
+
+    function applyBrushStroke(canvasX, canvasY) {
+      if (!maskDataBuffer || !mainCanvas.width || !mainCanvas.height) return;
+      const w = mainCanvas.width;
+      const h = mainCanvas.height;
+
+      const radius = brushSize;
+      const innerRadius = radius * (1 - (brushFeather / 100));
+
+      const minX = Math.max(0, Math.floor(canvasX - radius));
+      const maxX = Math.min(w - 1, Math.ceil(canvasX + radius));
+      const minY = Math.max(0, Math.floor(canvasY - radius));
+      const maxY = Math.min(h - 1, Math.ceil(canvasY + radius));
+
+      const isPaint = (brushMode === 'paint');
+
+      for (let y = minY; y <= maxY; y++) {
+        for (let x = minX; x <= maxX; x++) {
+          const dist = Math.hypot(x - canvasX, y - canvasY);
+          if (dist <= radius) {
+            let opacity = 1;
+            if (dist > innerRadius && radius > innerRadius) {
+              const t = (dist - innerRadius) / (radius - innerRadius);
+              opacity = 0.5 * (1 + Math.cos(Math.PI * t));
+            }
+            const idx = y * w + x;
+            const cur = maskDataBuffer[idx];
+            if (isPaint) {
+              maskDataBuffer[idx] = Math.max(cur, (opacity * 255) | 0);
+            } else {
+              maskDataBuffer[idx] = Math.min(cur, (255 - (opacity * 255)) | 0);
+            }
+          }
+        }
+      }
+
+      generateBlendedMaskBuffer();
+      renderRubyMask();
+    }
+
+    function autoSelectMask(target) {
+      if (!baseImageData || !maskDataBuffer) return;
+      pushHistory();
+
+      const w = mainCanvas.width;
+      const h = mainCanvas.height;
+      const src = baseImageData.data;
+      const total = w * h;
+
+      for (let i = 0; i < total; i++) {
+        const offset = i * 4;
+        const r = src[offset];
+        const g = src[offset + 1];
+        const b = src[offset + 2];
+
+        if (target === 'foliage') {
+          // Detect foliage greens
+          if (g > r * 1.15 && g > b * 1.15 && g > 40) {
+            const strength = Math.min(255, (g - Math.max(r, b)) * 3);
+            maskDataBuffer[i] = strength | 0;
+          } else {
+            maskDataBuffer[i] = 0;
+          }
+        } else if (target === 'sky') {
+          // Detect sky blues / cyans / bright highlights
+          const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+          if ((b > r && b > 75) || (lum > 190 && Math.abs(r - b) < 30)) {
+            maskDataBuffer[i] = 230;
+          } else {
+            maskDataBuffer[i] = 0;
+          }
+        }
+      }
+
+      smoothMaskBuffer(3);
+      generateBlendedMaskBuffer();
+      renderImage();
+    }
+
+    function invertMask() {
+      if (!maskDataBuffer) return;
+      pushHistory();
+      for (let i = 0; i < maskDataBuffer.length; i++) {
+        maskDataBuffer[i] = 255 - maskDataBuffer[i];
+      }
+      generateBlendedMaskBuffer();
+      renderImage();
+    }
+
+    function clearCurrentMask() {
+      if (!maskDataBuffer) return;
+      pushHistory();
+      maskDataBuffer.fill(0);
+      if (smoothedMaskBuffer) smoothedMaskBuffer.fill(0);
+      resetMaskAdjustments();
+      renderImage();
+    }
+
+    function toggleRubyOverlay() {
+      showRubyOverlay = !showRubyOverlay;
+      const btn = document.getElementById('btnRubyToggle');
+      if (btn) {
+        btn.innerText = showRubyOverlay ? 'Visible' : 'Hidden';
+        btn.className = showRubyOverlay 
+          ? 'px-3 py-1 rounded-md text-xs font-semibold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40'
+          : 'px-3 py-1 rounded-md text-xs font-semibold bg-dark-750 text-slate-400 border border-dark-700';
+      }
+      renderRubyMask();
+    }
+
+    function renderRubyMask() {
+      if (!maskCtx || !mainCanvas.width || !mainCanvas.height) return;
+      const w = mainCanvas.width;
+      const h = mainCanvas.height;
+      maskCtx.clearRect(0, 0, w, h);
+
+      if (!showRubyOverlay || activeTab !== 'mask') return;
+
+      const activeMask = (maskBlendRadius > 0 && smoothedMaskBuffer) ? smoothedMaskBuffer : maskDataBuffer;
+      if (!activeMask) return;
+
+      const imgData = maskCtx.createImageData(w, h);
+      const data = imgData.data;
+      const total = w * h;
+
+      for (let i = 0; i < total; i++) {
+        const val = activeMask[i];
+        if (val > 0) {
+          const offset = i * 4;
+          data[offset] = 244;     // Red
+          data[offset + 1] = 63;  // Green
+          data[offset + 2] = 94;  // Blue
+          data[offset + 3] = (val * 0.52) | 0; // Translucent ruby tint
+        }
+      }
+
+      maskCtx.putImageData(imgData, 0, 0);
+    }
+
+    /* =============================================================
+     * POINTER & CANVAS INTERACTIONS (TOUCH + MOUSE)
+     * ============================================================= */
+    function setupPointerEvents() {
+      function getCanvasCoordinates(e) {
+        const rect = mainCanvas.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+        const scaleX = mainCanvas.width / rect.width;
+        const scaleY = mainCanvas.height / rect.height;
+        return {
+          x: (clientX - rect.left) * scaleX,
+          y: (clientY - rect.top) * scaleY
+        };
+      }
+
+      function onPointerDown(e) {
+        if (activeTab !== 'mask' || isCompareMode) return;
+        isDrawingMask = true;
+        const coords = getCanvasCoordinates(e);
+        applyBrushStroke(coords.x, coords.y);
+      }
+
+      function onPointerMove(e) {
+        if (!isDrawingMask || activeTab !== 'mask' || isCompareMode) return;
+        const coords = getCanvasCoordinates(e);
+        applyBrushStroke(coords.x, coords.y);
+      }
+
+      function onPointerUp() {
+        if (isDrawingMask) {
+          isDrawingMask = false;
+          pushHistory();
+          renderImage();
+        }
+      }
+
+      mainCanvas.addEventListener('mousedown', onPointerDown);
+      window.addEventListener('mousemove', onPointerMove);
+      window.addEventListener('mouseup', onPointerUp);
+
+      mainCanvas.addEventListener('touchstart', (e) => {
+        if (activeTab === 'mask' && !isCompareMode) {
+          e.preventDefault();
+          onPointerDown(e);
+        }
+      }, { passive: false });
+
+      window.addEventListener('touchmove', (e) => {
+        if (isDrawingMask) {
+          e.preventDefault();
+          onPointerMove(e);
+        }
+      }, { passive: false });
+
+      window.addEventListener('touchend', onPointerUp);
+
+      // Split slider handle drag
+      splitHandle.addEventListener('mousedown', () => { isDraggingSplit = true; });
+      window.addEventListener('mousemove', (e) => {
+        if (!isDraggingSplit) return;
+        handleSplitDrag(e.clientX);
+      });
+      window.addEventListener('mouseup', () => { isDraggingSplit = false; });
+
+      splitHandle.addEventListener('touchstart', (e) => {
+        isDraggingSplit = true;
+        e.preventDefault();
+      }, { passive: false });
+
+      window.addEventListener('touchmove', (e) => {
+        if (!isDraggingSplit) return;
+        handleSplitDrag(e.touches[0].clientX);
+      }, { passive: false });
+
+      window.addEventListener('touchend', () => { isDraggingSplit = false; });
+    }
+
+    function handleSplitDrag(clientX) {
+      const rect = mainCanvas.getBoundingClientRect();
+      let pos = (clientX - rect.left) / rect.width;
+      pos = Math.max(0.02, Math.min(0.98, pos));
+      splitPos = pos;
+      updateSplitView();
+    }
+
+    function toggleCompareMode() {
+      isCompareMode = !isCompareMode;
+      const btn = document.getElementById('btnCompare');
+      if (isCompareMode) {
+        splitContainer.classList.remove('hidden');
+        btn.classList.add('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/40');
+        updateSplitView();
+      } else {
+        splitContainer.classList.add('hidden');
+        btn.classList.remove('bg-emerald-500/20', 'text-emerald-400', 'border-emerald-500/40');
+      }
+    }
+
+    function updateSplitView() {
+      if (!isCompareMode) return;
+      const percent = (splitPos * 100).toFixed(2);
+      splitBeforeWrapper.style.width = `${percent}%`;
+      splitHandle.style.left = `${percent}%`;
+    }
+
+    /* =============================================================
+     * PRESETS & ADJUSTMENTS DISPATCHER
+     * ============================================================= */
+    const PRESETS = {
+      lush_forest: {
+        exposure: 4,
+        contrast: 14,
+        foliageGreens: 45,
+        skyCyan: 10,
+        warmthGlow: -5,
+        temp: -4,
+        vibrance: 28,
+        saturation: 12,
+        highlights: -20,
+        shadows: 15,
+        shadowTint: 8,
+        highlightTint: -5
+      },
+      golden_hour: {
+        exposure: 6,
+        contrast: 10,
+        foliageGreens: 15,
+        skyCyan: -10,
+        warmthGlow: 55,
+        temp: 34,
+        tint: 6,
+        vibrance: 25,
+        saturation: 18,
+        highlights: -15,
+        shadows: 18,
+        shadowTint: -12,
+        highlightTint: 28
+      },
+      alpine_mist: {
+        exposure: 2,
+        contrast: 18,
+        foliageGreens: -10,
+        skyCyan: 42,
+        warmthGlow: -25,
+        temp: -24,
+        tint: -8,
+        vibrance: 22,
+        saturation: -10,
+        highlights: -12,
+        shadows: 20,
+        shadowTint: 22,
+        highlightTint: -18
+      },
+      earthy_autumn: {
+        exposure: -2,
+        contrast: 16,
+        foliageGreens: -40,
+        skyCyan: -15,
+        warmthGlow: 40,
+        temp: 22,
+        tint: 12,
+        vibrance: 20,
+        saturation: 14,
+        highlights: -22,
+        shadows: 10,
+        shadowTint: -20,
+        highlightTint: 15
+      },
+      teal_terracotta: {
+        exposure: 5,
+        contrast: 26,
+        foliageGreens: 15,
+        skyCyan: 48,
+        warmthGlow: 32,
+        temp: 8,
+        tint: 0,
+        vibrance: 30,
+        saturation: 10,
+        highlights: -25,
+        shadows: 12,
+        shadowTint: 38,
+        highlightTint: 26
+      },
+      nat_geo: {
+        exposure: 0,
+        contrast: 22,
+        foliageGreens: 28,
+        skyCyan: 20,
+        warmthGlow: 15,
+        temp: 4,
+        tint: 0,
+        vibrance: 40,
+        saturation: 15,
+        highlights: -30,
+        shadows: 25,
+        shadowTint: 5,
+        highlightTint: 5
+      },
+      moody_nordic: {
+        exposure: -8,
+        contrast: 24,
+        foliageGreens: 12,
+        skyCyan: -10,
+        warmthGlow: -20,
+        temp: -12,
+        tint: 4,
+        vibrance: -25,
+        saturation: -30,
+        highlights: -40,
+        shadows: 30,
+        shadowTint: 14,
+        highlightTint: -12
+      },
+      fine_monochrome: {
+        exposure: 0,
+        contrast: 35,
+        foliageGreens: 0,
+        skyCyan: 0,
+        warmthGlow: 0,
+        temp: 0,
+        tint: 0,
+        vibrance: -100,
+        saturation: -100,
+        highlights: -25,
+        shadows: 25,
+        shadowTint: 0,
+        highlightTint: 0
+      }
+    };
+
+    function applyPreset(name) {
+      const p = PRESETS[name];
+      if (!p) return;
+      pushHistory();
+
+      resetParamsInternal();
+      Object.keys(p).forEach(k => {
+        params[k] = p[k];
+      });
+
+      syncAllInputsToParams();
+      renderImage();
+
+      // Highlight active card
+      document.querySelectorAll('.preset-card').forEach(card => {
+        if (card.getAttribute('data-preset') === name) {
+          card.classList.add('ring-2', 'ring-emerald-400');
+        } else {
+          card.classList.remove('ring-2', 'ring-emerald-400');
+        }
+      });
+    }
+
+    function updateAdjustment(prop, val) {
+      params[prop] = parseFloat(val);
+      const badge = document.getElementById(`val-${prop}`);
+      if (badge) {
+        if (prop === 'exposure') badge.innerText = `${(params[prop] / 20).toFixed(1)} EV`;
+        else if (prop === 'temp') badge.innerText = `${params[prop]} K`;
+        else badge.innerText = `${params[prop]}`;
+      }
+      renderImage();
+    }
+
+    function updateMaskAdjustment(prop, val) {
+      maskParams[prop] = parseFloat(val);
+      const badge = document.getElementById(`val-${prop}`);
+      if (badge) {
+        if (prop === 'maskExp') badge.innerText = `${(maskParams[prop] / 20).toFixed(1)} EV`;
+        else if (prop === 'maskTemp') badge.innerText = `${maskParams[prop]} K`;
+        else badge.innerText = `${maskParams[prop]}`;
+      }
+      renderImage();
+    }
+
+    function resetParamsInternal() {
+      Object.keys(params).forEach(k => { params[k] = 0; });
+    }
+
+    function resetAllAdjustments() {
+      pushHistory();
+      resetParamsInternal();
+      syncAllInputsToParams();
+      document.querySelectorAll('.preset-card').forEach(c => c.classList.remove('ring-2', 'ring-emerald-400'));
+      renderImage();
+    }
+
+    function resetParamGroup(keys) {
+      pushHistory();
+      keys.forEach(k => {
+        params[k] = 0;
+        const input = document.getElementById(`param-${k}`);
+        if (input) input.value = 0;
+        const badge = document.getElementById(`val-${k}`);
+        if (badge) badge.innerText = (k === 'exposure') ? '0.0 EV' : (k === 'temp') ? '0 K' : '0';
+      });
+      renderImage();
+    }
+
+    function resetMaskAdjustments() {
+      pushHistory();
+      Object.keys(maskParams).forEach(k => {
+        maskParams[k] = 0;
+        const input = document.getElementById(`param-${k}`);
+        if (input) input.value = 0;
+        const badge = document.getElementById(`val-${k}`);
+        if (badge) badge.innerText = (k === 'maskExp') ? '0.0 EV' : (k === 'maskTemp') ? '0 K' : '0';
+      });
+      renderImage();
+    }
+
+    function syncAllInputsToParams() {
+      Object.keys(params).forEach(k => {
+        const input = document.getElementById(`param-${k}`);
+        if (input) input.value = params[k];
+        const badge = document.getElementById(`val-${k}`);
+        if (badge) {
+          if (k === 'exposure') badge.innerText = `${(params[k] / 20).toFixed(1)} EV`;
+          else if (k === 'temp') badge.innerText = `${params[k]} K`;
+          else badge.innerText = `${params[k]}`;
+        }
+      });
+    }
+
+    /* =============================================================
+     * TAB SWITCHING & UI HELPERS
+     * ============================================================= */
+    function switchTab(tab) {
+      activeTab = tab;
+      ['presets', 'adjust', 'mask'].forEach(t => {
+        const btn = document.getElementById(`tabBtn-${t}`);
+        const content = document.getElementById(`tabContent-${t}`);
+        if (t === tab) {
+          btn.className = 'flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-1.5 border-b-2 border-emerald-500 text-emerald-400 transition';
+          content.classList.remove('hidden');
+        } else {
+          btn.className = 'flex-1 py-3 text-xs font-semibold flex items-center justify-center gap-1.5 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition';
+          content.classList.add('hidden');
+        }
+      });
+      renderRubyMask();
+    }
+
+    /* =============================================================
+     * HISTORY (UNDO / REDO)
+     * ============================================================= */
+    function pushHistory() {
+      // Discard future if branching
+      if (historyIndex < historyStack.length - 1) {
+        historyStack.splice(historyIndex + 1);
+      }
+
+      const snap = {
+        params: { ...params },
+        maskParams: { ...maskParams },
+        maskData: maskDataBuffer ? new Uint8Array(maskDataBuffer) : null
+      };
+
+      historyStack.push(snap);
+      if (historyStack.length > MAX_HISTORY) {
+        historyStack.shift();
+      }
+      historyIndex = historyStack.length - 1;
+      updateHistoryButtons();
+    }
+
+    function undo() {
+      if (historyIndex > 0) {
+        historyIndex--;
+        restoreHistoryState(historyStack[historyIndex]);
+      }
+    }
+
+    function redo() {
+      if (historyIndex < historyStack.length - 1) {
+        historyIndex++;
+        restoreHistoryState(historyStack[historyIndex]);
+      }
+    }
+
+    function restoreHistoryState(state) {
+      if (!state) return;
+      params = { ...state.params };
+      maskParams = { ...state.maskParams };
+
+      if (state.maskData && maskDataBuffer && maskDataBuffer.length === state.maskData.length) {
+        maskDataBuffer.set(state.maskData);
+        generateBlendedMaskBuffer();
+      }
+
+      syncAllInputsToParams();
+      Object.keys(maskParams).forEach(k => {
+        const input = document.getElementById(`param-${k}`);
+        if (input) input.value = maskParams[k];
+        const badge = document.getElementById(`val-${k}`);
+        if (badge) {
+          if (k === 'maskExp') badge.innerText = `${(maskParams[k] / 20).toFixed(1)} EV`;
+          else if (k === 'maskTemp') badge.innerText = `${maskParams[k]} K`;
+          else badge.innerText = `${maskParams[k]}`;
+        }
+      });
+
+      renderImage();
+      updateHistoryButtons();
+    }
+
+    function updateHistoryButtons() {
+      const btnUndo = document.getElementById('btnUndo');
+      const btnRedo = document.getElementById('btnRedo');
+      if (btnUndo) btnUndo.disabled = (historyIndex <= 0);
+      if (btnRedo) btnRedo.disabled = (historyIndex >= historyStack.length - 1);
+    }
+
+    /* =============================================================
+     * EXPORT AT NATIVE RESOLUTION
+     * ============================================================= */
+    function exportProcessedImage() {
+      if (!mainCanvas) return;
+      const exportCanvas = document.createElement('canvas');
+      exportCanvas.width = mainCanvas.width;
+      exportCanvas.height = mainCanvas.height;
+      const expCtx = exportCanvas.getContext('2d');
+      expCtx.drawImage(mainCanvas, 0, 0);
+
+      const link = document.createElement('a');
+      link.download = `lumina_nature_${Date.now()}.jpg`;
+      link.href = exportCanvas.toDataURL('image/jpeg', 0.96);
+      link.click();
+    }
+  </script>
+</body>
+</html>
